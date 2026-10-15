@@ -39,6 +39,15 @@ No required value may be missing. Reject NaN, infinity and duplicate column name
 
 `data/processed/ai4i_transformed.csv` is for DAV demonstrations only. It is not a model input: global scaling or encoding may leak information into evaluation.
 
+## Cleaning and data-quality policies
+
+- Keep `data/raw/ai4i2020.csv` unchanged. The official cleaned CSV keeps exactly the 14 canonical columns and preserves the original physical sensor values.
+- For official data, detect and report missing values, exact duplicate rows, duplicate `uid` values, invalid records and IQR outliers. Do not impute or remove official observations. If unexpected invalid data is found, write the report and stop before producing the cleaned CSV.
+- Use the IQR rule with fences at 1.5 times the interquartile range to flag unusual numeric sensor readings. Report them without removing or altering them.
+- Keep deliberate dirty-data examples under `data/demo/`, derived from a separate copy of the official source. Record each intentional change in a manifest.
+- In a dirty demonstration, remove and count exact duplicate rows; flag and quarantine conflicting records with the same `uid`; median-impute missing numeric sensor values; and mode-impute missing `type` values. Never invent identifiers or failure labels. Quarantine invalid or ambiguous records and document all corrections, removals, quarantines and flags.
+- The official quality report is `outputs/reports/data_quality.json`. Dirty-demonstration quality results are reported separately from official data.
+
 ## Prediction features
 
 Ordered allowlist: `type`, `air_temperature_k`, `process_temperature_k`, `rotational_speed_rpm`, `torque_nm`, `tool_wear_min`. Target: `machine_failure`; positive class is `1` (failure), negative class is `0`.
@@ -179,7 +188,7 @@ These are NOT established interfaces for his modules:
 - Agree on his public loading/validation/cleaning/transformation/statistics function names and signatures; none are prescribed here.
 - Propose `data_quality.json` include schema version, source path, before/after row counts, missing-value counts, duplicate-ID counts, outlier flags and logged cleaning actions. Exact keys and types require his approval.
 - Propose `run_manifest.json` include schema version, input paths, output paths, pipeline completion status and errors. Exact keys/types and partial-failure behavior require his approval.
-- Agree on transformed CSV and table column schemas, cleaning/duplicate policies, and six core figure filenames. Preserve target labels and meaningful outliers; demonstrate artificial dirt in a separately labeled copy.
+- Agree on transformed CSV and table column schemas and six core figure filenames. Preserve target labels and meaningful outliers; demonstrate artificial dirt in a separately labeled copy.
 - Agree on a supported Python version, tested dependency pins, and whether small generated evidence files will be intentionally committed. Agree on shared scaffold integration into main only after explicit commit/push/merge authorization.
 
 Changes to shared schema, interfaces, ownership or paths require both students' agreement and an updated contract. Preserve the original handoff unchanged.
