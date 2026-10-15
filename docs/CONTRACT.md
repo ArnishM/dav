@@ -1,14 +1,14 @@
 # Industrial Machine Failure Analyzer — Shared Contract
 
-Schema version: `1.0`. This is the single authoritative shared integration contract. The preserved Yahya handoff is background documentation; its references to `docs/contracts.md` refer to this file. No second contract file should be created. User-authorized Phase 1 decisions below define Yahya's interfaces; proposals for Amirul's unresolved interfaces are explicitly marked pending approval.
+Schema version: `1.0`. This is the single authoritative shared integration contract. The preserved Yahya handoff is background documentation; its references to `docs/contracts.md` refer to this file. No second contract file should be created. The project implementation and integration are present on the `amirul` branch. Exact transformed CSV, summary-table, quality-report and run-manifest schemas remain pending joint confirmation; this document does not treat the current output shapes as approved until that review is complete.
 
 ## Scope and ownership
 
 Analyze synthetic machinery observations through preparation, statistics, transformations, charts and snapshot failure classification. The source has no genuine timestamps: do not claim real-time readings, chronological forecasting or remaining useful life. Preserve raw data and physical units; meaningful sensor outliers must not be automatically removed.
 
-Yahya owns `features.py`, `prediction.py`, `advanced_analysis.py` under `src/industrial_analyzer/`, `notebooks/03_failure_insights.ipynb` and `tests/test_prediction.py`. Yahya fixes defects in these modules.
+Yahya owns `features.py`, `prediction.py`, `advanced_analysis.py` under `src/industrial_analyzer/` and `tests/test_prediction.py`. Yahya fixes defects in these modules. By team agreement, a separate `notebooks/03_failure_insights.ipynb` is not required: `notebooks/04_final_demo.ipynb` runs the integrated pipeline and demonstrates feature engineering, model evaluation, the six-field prediction example and Yahya's advanced charts.
 
-Amirul owns data loading and validation, cleaning and preprocessing, transformations and aggregation, statistics, main DAV charts, final notebook and pipeline orchestration. Planned modules are `data_loader.py`, `validation.py`, `cleaning.py`, `transformation.py`, `statistics.py`, `visualization.py`; integration files are `scripts/run_pipeline.py` and `notebooks/04_final_demo.ipynb`. Do not implement or edit his modules without his request. Shared documentation, dependencies, package initialization and contract tests require coordination.
+Amirul owns data loading and validation, cleaning and preprocessing, transformations and aggregation, statistics, main DAV charts, final notebook and pipeline orchestration. Implemented modules are `data_loader.py`, `validation.py`, `cleaning.py`, `transformation.py`, `statistics.py` and `visualization.py`; orchestration and demonstration are in `scripts/run_pipeline.py` and `notebooks/04_final_demo.ipynb`. Do not implement or edit his modules without his request. Shared documentation, dependencies, package initialization and contract tests require coordination.
 
 ## Canonical cleaned CSV
 
@@ -56,7 +56,7 @@ Exclude `uid`, `product_id`, `machine_failure`, `twf`, `hdf`, `pwf`, `osf`, `rnf
 
 ## Yahya's public interfaces
 
-These signatures are documentation, not implemented code. `pd` denotes `pandas`.
+These are the implemented public interfaces. `pd` denotes `pandas`.
 
 ```python
 engineer_features(df: pd.DataFrame) -> pd.DataFrame
@@ -173,22 +173,100 @@ Invalid caller data, schema, domain values, derived-name collisions or incompati
 
 Amirul loads, validates and cleans the data, then writes the canonical CSV. His orchestrator loads that CSV, calls `engineer_features(clean)` for descriptive analysis, calls `train_failure_model(clean, "models/failure_model.joblib")`, calls `predict_one(readings, model_info["model_path"])`, and calls `plot_failure_insights(features, "outputs/figures")`. No REST server is required. He imports Yahya's functions; he must not copy notebook cells or rewrite their internals.
 
-For initial development, run from the repository root with `src` on `PYTHONPATH`; avoid notebook-specific path hacks. This Phase 1 scaffold has no Python package implementation yet. Python version and dependency pins must be agreed and verified before installation.
+Run commands from the repository root with `src` on `PYTHONPATH`; notebooks also expect the repository root as the working directory. The agreed development interpreter is Python 3.13.11 in the project-specific `.venv`. Dependencies are listed in `requirements.txt`; package versions are not pinned.
 
-## Compatibility tests planned for coding phases
+## Test and compatibility status
 
-Shared `tests/test_contract.py` will check CSV column order, dtypes/domains, unique IDs, required values, raw units, public signatures and JSON structures. Coordinate ownership before editing it. Yahya's tests will verify non-mutating feature calculations and row preservation, exactly six model inputs, no label leakage, training-only fitted preprocessing, deterministic split/training, serialization round-trip, native JSON types, invalid-input exceptions and chart paths/nonempty PNGs. Use clearly labeled small artificial fixtures, not invented source observations or claimed performance.
+The integrated test suite was run on the `amirul` branch during the 2026-10-15 pre-merge audit: 186 passed, 0 failed, 0 skipped. The compatibility test reads `data/processed/ai4i_cleaned.csv`; it skips only when that file is absent. Its current test name is `test_amirul_cleaned_csv_read_only` in `tests/test_integration_yahya.py`.
 
-Integration smoke tests will load Amirul's canonical CSV and invoke all four public functions without notebook dependencies. Check returned paths exist, confusion counts and metrics are consistent, positive-class probabilities use the correct class, and names do not collide. These are future checks; no tests or model results exist in Phase 1.
+The Yahya unit and integration tests cover non-mutating feature calculations and row preservation, exactly six model inputs, no label leakage, training-only preprocessing, deterministic split/training, serialization, metrics, invalid-input handling, chart paths and output-name separation. `tests/test_integration_yahya.py` exercises the canonical cleaned CSV when present. The passing test suite verifies implementation behavior; the schemas below are the separately agreed output contract.
 
-## Proposals pending Amirul's approval
+## Agreed descriptive output schemas
 
-These are NOT established interfaces for his modules:
+Yahya and Amirul approved the following schemas for the descriptive outputs. CSV files are UTF-8, comma-separated, have one header row, and do not include a DataFrame index.
 
-- Agree on his public loading/validation/cleaning/transformation/statistics function names and signatures; none are prescribed here.
-- Propose `data_quality.json` include schema version, source path, before/after row counts, missing-value counts, duplicate-ID counts, outlier flags and logged cleaning actions. Exact keys and types require his approval.
-- Propose `run_manifest.json` include schema version, input paths, output paths, pipeline completion status and errors. Exact keys/types and partial-failure behavior require his approval.
-- Agree on transformed CSV and table column schemas and six core figure filenames. Preserve target labels and meaningful outliers; demonstrate artificial dirt in a separately labeled copy.
-- Agree on a supported Python version, tested dependency pins, and whether small generated evidence files will be intentionally committed. Agree on shared scaffold integration into main only after explicit commit/push/merge authorization.
+### Transformed demonstration CSV
+
+`data/processed/ai4i_transformed.csv` has these 28 columns in exactly this order:
+
+```csv
+uid,product_id,type,air_temperature_k,process_temperature_k,rotational_speed_rpm,torque_nm,tool_wear_min,machine_failure,twf,hdf,pwf,osf,rnf,type_L,type_M,type_H,air_temperature_k_minmax,air_temperature_k_zscore,process_temperature_k_minmax,process_temperature_k_zscore,rotational_speed_rpm_minmax,rotational_speed_rpm_zscore,torque_nm_minmax,torque_nm_zscore,tool_wear_min_minmax,tool_wear_min_zscore,tool_wear_quantile_bin
+```
+
+The first 14 columns retain the canonical values and order. Added columns are descriptive encodings, global min-max/z-score transformations and a tool-wear quantile bin. This file is for demonstrations only and must never be used as model input.
+
+### Summary tables
+
+| File | Exact columns, in order |
+|---|---|
+| `outputs/tables/summary_statistics.csv` | `feature, count, mean, std, min, 25%, 50%, 75%, max` |
+| `outputs/tables/failure_by_type.csv` | `type, total_records, failure_count, nonfailure_count, failure_rate_percent` |
+| `outputs/tables/failure_modes.csv` | `failure_mode, flagged_records, percent_of_records, dataset_records` |
+
+### Official data-quality report
+
+For a successfully parsed official source, `outputs/reports/data_quality.json` has exactly these top-level keys:
+
+```text
+schema_version, dataset_kind, source_path, cleaned_path, status, row_counts,
+missing_values_by_column, duplicates, validation_errors, outliers, actions,
+source_preserved
+```
+
+The nested keys and value types are:
+
+- `schema_version`, `dataset_kind`, `source_path`, `cleaned_path`, `status`: strings; `status` is `success` or `failed`.
+- `row_counts`: `input` (integer), `output` (integer or null when validation failed), `removed` (integer).
+- `missing_values_by_column`: object mapping each canonical column name to an integer missing-value count.
+- `duplicates`: `exact_duplicate_rows`, `duplicate_uid_groups`, `duplicate_uid_records` (integers).
+- `validation_errors`: array of strings.
+- `outliers`: `method` (string) and `fields` (object keyed by the five sensor measurement columns). Each available field contains `status`, `method`, `lower_fence`, `upper_fence`, `flagged_count`, `uids`; fences are finite numbers and counts are integers. An unavailable field contains `status`, `flagged_count`, `uids`.
+- `actions`: `corrected_values`, `removed_rows`, `flagged_outliers` (integers) and `details` (array of strings).
+- `source_preserved`: boolean.
+
+If the source cannot be parsed before an audit can be completed, the early-error report has exactly `schema_version, dataset_kind, source_path, status, validation_errors, actions`; its `actions` object has `corrected_values, removed_rows, flagged_outliers`, all integers. The pipeline records the failure in its run manifest and stops.
+
+### Pipeline run manifest
+
+`outputs/reports/run_manifest.json` has exactly these top-level keys:
+
+```text
+schema_version, status, inputs, outputs, completed_steps, pending_steps, errors
+```
+
+- `schema_version` and `status` are strings. Status is `running`, `complete`, `awaiting_readings`, `awaiting_yahya`, or `failed`.
+- `inputs` has `source_csv` (repository-relative path string).
+- `outputs` contains only outputs completed by the run. In a complete run with a prediction, its exact keys are `cleaned_csv, data_quality_report, transformed_csv, tables, amirul_figures, model, model_metrics, yahya_figures, single_reading_prediction`. Paths are repository-relative strings; `tables` has exactly `summary_statistics, failure_by_type, failure_modes`; chart lists contain repository-relative path strings; `single_reading_prediction` is `returned_to_caller` because the prediction object is returned to the caller rather than written as a file.
+- `completed_steps` and `pending_steps` are arrays of strings.
+- `errors` is an array of objects. A caught pipeline exception records `step`, `error_type`, and `message`; a missing Yahya module records `step` and `message`.
+
+For incomplete runs, `outputs`, `completed_steps`, `pending_steps`, and `errors` reflect completed work and the failure or waiting condition; they do not claim unfinished artifacts were generated. The final notebook demonstrates feature engineering, model evaluation, a six-field prediction example and Yahya's advanced charts. By team agreement, no separate `notebooks/03_failure_insights.ipynb` is required.
+
+Generated evidence remains untracked during development. The team will include the necessary reproducible outputs in the university submission; regeneration steps are documented below.
 
 Changes to shared schema, interfaces, ownership or paths require both students' agreement and an updated contract. Preserve the original handoff unchanged.
+
+## Reproducing generated outputs
+
+Run from the repository root with the agreed `.venv` activated. These commands read the official source and write the cleaned and generated files to the paths listed above; they do not edit `data/raw/ai4i2020.csv`.
+
+```bash
+cd ~/Documents/dav
+source .venv/bin/activate
+export PYTHONPATH=src
+export MPLBACKEND=Agg
+python scripts/run_cleaning.py
+```
+
+`run_cleaning.py` regenerates the official clean CSV and quality report, plus the separate dirty demonstration source, its manifest, cleaned result and quarantine CSV. It also writes the dirty-demo quality report under `outputs/reports/`.
+
+To regenerate the transformed CSV, summary tables, model, model metrics, charts and a prediction, provide a JSON file containing exactly the six approved inputs. The following values are illustrative example inputs, not a claimed observation or expected prediction:
+
+```bash
+cat > /tmp/dav-readings.json <<'JSON'
+{"type":"L","air_temperature_k":298.1,"process_temperature_k":308.6,"rotational_speed_rpm":1551,"torque_nm":42.8,"tool_wear_min":120}
+JSON
+python scripts/run_pipeline.py --readings-file /tmp/dav-readings.json
+```
+
+The final demonstration notebook also regenerates the integrated pipeline outputs when executed from the repository root. The generated CSV/JSON evidence files remain untracked during development; include the agreed final artifacts when packaging the university submission.
